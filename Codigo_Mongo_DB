@@ -1,83 +1,116 @@
-/* * PROYECTO: Análisis de Subsidios de Vivienda (MongoDB)
+/* * PROYECTO: Gestión y Análisis de Subsidios de Vivienda (MongoDB)
  * BASE DE DATOS: BD_John
  * COLECCIÓN: Subsidios_2025
- * DESCRIPCIÓN: Script integral para limpieza (ETL), análisis y estandarización.
- * CREADO POR: John Alexander Casallas
+ * Diseñado por: John Casallas - UNAD 2025
+ * DESCRIPCIÓN: Script completo que cubre Importación, CRUD, Limpieza y Análisis.
  */
 
-// ==========================================
-// 0. CONFIGURACIÓN INICIAL
-// ==========================================
+// =========================================================
+// PASO 0: IMPORTACIÓN DE DATOS (Ejecutar en Terminal)
+// =========================================================
+/* MongoDB no importa CSVs desde este script de consola. 
+   Debes ejecutar el siguiente comando en tu terminal de sistema (CMD/Bash)
+   antes de usar este script:
+
+   mongoimport --db BD_John --collection Subsidios_2025 --type csv --headerline --file "Subsidios_Mejoramientos_Programas_CMC-MCY_20251122.csv"
+*/
+
+// =========================================================
+// INICIO DEL SCRIPT MONGODB
+// =========================================================
 use BD_John
 
-// ==========================================
-// 1. LIMPIEZA DE DATOS (ETL)
-// ==========================================
-// Eliminación de comas y conversión de tipos (String -> Int/Long)
-// Este paso es fundamental para poder realizar sumas y comparaciones numéricas.
+// =========================================================
+// PASO 1: LIMPIEZA DE DATOS (ETL) - CRÍTICO
+// =========================================================
+// Eliminamos comas y convertimos texto a números para poder operar.
+// Se ejecuta antes de cualquier consulta para asegurar la integridad de datos.
 
 db.Subsidios_2025.updateMany(
-  {}, // 1. Filtro vacío: Aplica para todos los documentos
+  {}, // Filtro vacío: Aplica a toda la colección
   [
     {
-      $set: { // 2. Etapa de modificación
+      $set: {
         "Código Municipio": {
-          $toInt: { // 4. Convertir a Entero
-            $replaceAll: { // 3. Reemplazar comas
-              input: "$Código Municipio",
-              find: ",",
-              replacement: ""
-            }
+          $toInt: { 
+            $replaceAll: { input: "$Código Municipio", find: ",", replacement: "" }
           }
         },
         "Año de asignacion": {
           $toInt: {
-            $replaceAll: {
-              input: "$Año de asignacion",
-              find: ",",
-              replacement: ""
-            }
+            $replaceAll: { input: "$Año de asignacion", find: ",", replacement: "" }
           }
         },
         "Valor Asignado": {
-          $toLong: { // 5. Convertir a Entero Largo (para cifras grandes)
-            $replaceAll: {
-              input: "$Valor Asignado",
-              find: ",",
-              replacement: ""
-            }
+          $toLong: { 
+            $replaceAll: { input: "$Valor Asignado", find: ",", replacement: "" }
           }
         }
       }
     }
   ]
 );
+print("Limpieza de datos completada.");
 
-// ==========================================
-// 2. CONSULTAS DE NEGOCIO (Queries)
-// ==========================================
+// =========================================================
+// PASO 2: OPERACIONES CRUD BÁSICAS (Gestión de Registros)
+// =========================================================
 
-// Consulta: Seleccionar departamento "BOYACA" con Año de asignación 2025
+// A. INSERTAR (Crear un nuevo registro de prueba)
+print("--- Insertando registro de prueba ---");
+db.Subsidios_2025.insertOne({
+    "Departamento": "CUNDINAMARCA",
+    "Código Departamento": 25,
+    "Municipio": "BOGOTA",
+    "Código Municipio": 11001,
+    "Programa": "Mi Casa Ya",
+    "Año de asignacion": 2025,
+    "No. SFV Asignados": "1",
+    "Valor Asignado": 50000000, // Valor numérico limpio
+    "Tipo de suelo": "URBANO",
+    "Es_Prueba": true // Marcador para identificarlo fácilmente
+});
+
+// B. CONSULTAR (Leer el registro específico creado)
+print("--- Consultando registro creado ---");
+db.Subsidios_2025.find({ "Código Municipio": 11001, "Año de asignacion": 2025 }).pretty();
+
+// C. ACTUALIZAR (Modificar el valor del subsidio de prueba)
+print("--- Actualizando registro ---");
+db.Subsidios_2025.updateOne(
+    { "Código Municipio": 11001, "Es_Prueba": true },
+    { $set: { "Valor Asignado": 60000000 } }
+);
+
+// D. ELIMINAR (Borrar el registro de prueba)
+print("--- Eliminando registro de prueba ---");
+db.Subsidios_2025.deleteOne({ "Código Municipio": 11001, "Es_Prueba": true });
+
+
+// =========================================================
+// PASO 3: CONSULTAS DE NEGOCIO AVANZADAS
+// =========================================================
+
+// 3.1 Consulta: Departamento "BOYACA" año 2025
 print("--- Consulta: Boyacá 2025 ---");
 db.Subsidios_2025.find({
   "Departamento": "BOYACA",
   "Año de asignacion": 2025
 }).pretty();
 
-// Consulta: Subsidios en "ANTIOQUIA" mayores a 10,000 millones
-// (Nota: Se usa el número entero sin comillas gracias a la limpieza del paso 1)
-print("--- Consulta: Antioquia > 10.000 Millones ---");
+// 3.2 Consulta: Subsidios en "ANTIOQUIA" mayores a 10,000 millones
+print("--- Consulta: Antioquia > 10 mil millones ---");
 db.Subsidios_2025.find({
   "Departamento": "ANTIOQUIA",
   "Valor Asignado": { $gt: 10000000000 } 
 });
 
-// ==========================================
-// 3. ANÁLISIS ESTADÍSTICO (Agregaciones)
-// ==========================================
+// =========================================================
+// PASO 4: ANÁLISIS ESTADÍSTICO (AGREGACIONES)
+// =========================================================
 
-// Agregación: Conteo de subsidios por año
-print("--- Agregación: Conteo por Año ---");
+// 4.1 Conteo de subsidios por año
+print("--- Estadística: Total subsidios por año ---");
 db.Subsidios_2025.aggregate([
   {
     $group: {
@@ -88,8 +121,8 @@ db.Subsidios_2025.aggregate([
   { $sort: { _id: 1 } }
 ]);
 
-// Agregación: Top 5 Departamentos con mayor inversión total
-print("--- Agregación: Top 5 Departamentos ---");
+// 4.2 Top 5 Departamentos con mayor inversión
+print("--- Estadística: Top 5 Departamentos por Valor ---");
 db.Subsidios_2025.aggregate([
     {
         $group: {
@@ -101,8 +134,8 @@ db.Subsidios_2025.aggregate([
     { $limit: 5 }
 ]);
 
-// Agregación: Promedio de valor asignado por año
-print("--- Agregación: Promedio por Año ---");
+// 4.3 Promedio de valor asignado por año
+print("--- Estadística: Promedio Valor por Año ---");
 db.Subsidios_2025.aggregate([
     {
         $group: {
@@ -113,21 +146,14 @@ db.Subsidios_2025.aggregate([
     { $sort: { _id: 1 } }
 ]);
 
-// ==========================================
-// 4. MANTENIMIENTO Y CORRECCIONES
-// ==========================================
-// Eliminar un campo creado por error en un registro específico (si aplica)
-db.Subsidios_2025.updateOne(
-    { "codigo_municipio": 5004 }, 
-    { $unset: { "valor_asignado": "" } }
-);
+// =========================================================
+// PASO 5: MANTENIMIENTO Y ESTANDARIZACIÓN FINAL
+// =========================================================
 
-// ==========================================
-// 5. ESTANDARIZACIÓN DE ESQUEMA (Renombrado Final)
-// ==========================================
-// Convertir los nombres de columnas originales a 'snake_case' 
-// para finalizar el diseño de la base de datos.
+// Corrección de errores puntuales (si hubiere campos errados creados anteriormente)
+db.Subsidios_2025.updateMany({}, { $unset: { "valor_asignado_erroneo": "" } });
 
+// Renombrar campos a 'snake_case' para finalizar el diseño
 db.Subsidios_2025.updateMany(
   {}, 
   {
@@ -145,4 +171,4 @@ db.Subsidios_2025.updateMany(
   }
 );
 
-print("Script ejecutado exitosamente.");
+print("Script finalizado exitosamente. BD lista.");
