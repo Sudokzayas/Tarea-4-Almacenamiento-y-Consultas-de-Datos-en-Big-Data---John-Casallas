@@ -12,9 +12,8 @@ El objetivo principal es migrar datos de un formato plano (CSV) a una base de da
 
 ## 🛠 Requisitos Previos
 
-* **MongoDB Server** (v5.0 o superior).
+* **MongoDB Server** (v8.0 o superior).
 * **MongoDB Shell (`mongosh`)** o **MongoDB Compass**.
-* Terminal de comandos (CMD, PowerShell o Bash).
 
 ## 🚀 Instalación y Configuración
 
